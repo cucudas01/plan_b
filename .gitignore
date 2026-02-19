@@ -1,0 +1,87 @@
+# ------------------------------------------------------------
+# 1. 보안 및 환경 변수
+# ------------------------------------------------------------
+.env
+android/local.properties
+ios/Flutter/Debug.xcconfig
+ios/Flutter/Release.xcconfig
+ios/Flutter/Generated.xcconfig
+
+# ------------------------------------------------------------
+# 2. Flutter/Dart/Pub 관련 빌드 아티팩트
+# ------------------------------------------------------------
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# ------------------------------------------------------------
+# 3. iOS/Xcode 관련 (임시 파일 및 사용자 설정)
+# ------------------------------------------------------------
+**/dgph
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+**/*sync/
+.sconsign.dblite
+.tags*
+**/.vagrant/
+**/DerivedData/
+Icon?
+**/Pods/
+**/.symlinks/
+profile
+xcuserdata
+**/.generated/
+Flutter/App.framework
+Flutter/Flutter.framework
+Flutter/Flutter.podspec
+Flutter/ephemeral/
+Flutter/app.flx
+Flutter/app.zip
+Flutter/flutter_assets/
+Flutter/flutter_export_environment.sh
+ServiceDefinitions.json
+Runner/GeneratedPluginRegistrant.*
+
+# iOS 예외 처리
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
+
+# ------------------------------------------------------------
+# 4. IDE 및 OS 관련 (IntelliJ, VS Code, macOS)
+# ------------------------------------------------------------
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# ------------------------------------------------------------
+# 5. Android 관련 빌드 산출물
+# ------------------------------------------------------------
+/android/app/debug
+/android/app/profile
+/android/app/release
+app.*.symbols
+app.*.map.json

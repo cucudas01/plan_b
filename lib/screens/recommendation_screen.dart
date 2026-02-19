@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/restaurant.dart';
 import '../services/gemini_service.dart';
 import '../widgets/restaurant_card.dart';
@@ -18,7 +19,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   List<Restaurant> _allRestaurants = [];
   List<Restaurant> _filteredRestaurants = [];
   bool _isLoading = true;
-  String _sortBy = 'rating'; // 정렬 상태: rating, distance
+  String _sortBy = 'rating';
 
   @override
   void initState() {
@@ -26,16 +27,46 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     _fetchAndLoad();
   }
 
-  // 3. [에러 핸들링 및 오프라인 모드] 로직 통합
+  // 수정된 부분: 식당 이름과 지역명으로 구글 맵 검색 실행
+  Future<void> _launchMaps(String name, String region) async {
+    // 식당 이름과 지역을 합쳐서 검색 쿼리를 만듭니다.
+    final query = Uri.encodeComponent('$name $region');
+    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('지도를 열 수 없습니다.')),
+        );
+      }
+    }
+  }
+
   Future<void> _fetchAndLoad() async {
     setState(() => _isLoading = true);
     try {
+      // 위치 서비스 활성화 확인
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) throw Exception('위치 서비스가 꺼져 있습니다.');
+
+      // 위치 권한 확인 및 요청
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) throw Exception('위치 권한이 거부되었습니다.');
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('위치 권한이 영구적으로 거부되었습니다.');
+      }
+
       Position pos = await Geolocator.getCurrentPosition();
       final results = await GeminiService.fetchRecommendations(
-        lat: pos.latitude, lng: pos.longitude, apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
+        lat: pos.latitude,
+        lng: pos.longitude,
+        apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
       );
 
-      // 성공 시 최신 데이터 캐싱
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_recommendations', jsonEncode(results.map((e) => e.toJson()).toList()));
 
@@ -45,29 +76,26 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      // 에러 발생 시 캐시 데이터 로드
-      _loadOfflineData();
+      _loadOfflineData(e.toString());
     }
   }
 
-  void _loadOfflineData() async {
+  void _loadOfflineData([String? errorMsg]) async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('cached_recommendations');
+    setState(() => _isLoading = false);
     if (cached != null) {
       Iterable l = jsonDecode(cached);
       setState(() {
         _allRestaurants = List<Restaurant>.from(l.map((model) => Restaurant.fromJson(model)));
         _applySort();
-        _isLoading = false;
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('오프라인 모드: 이전 추천 결과를 표시합니다.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('오프라인 모드 데이터를 표시합니다.')));
     } else {
-      setState(() => _isLoading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('데이터를 불러올 수 없습니다.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg ?? '데이터를 불러올 수 없습니다.')));
     }
   }
 
-  // 4. [필터링 및 정렬] 로직 구현
   void _applySort() {
     setState(() {
       _filteredRestaurants = List.from(_allRestaurants);
@@ -93,14 +121,6 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
       appBar: AppBar(
         title: const Text('AI 추천 결과'),
         actions: [
-          // 2. [지도 보기] 및 [정렬] 메뉴 버튼 추가
-          IconButton(
-            icon: const Icon(Icons.map),
-            onPressed: () {
-              // MapViewScreen으로 이동 로직 (구현 필요)
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('준비 중인 기능입니다.')));
-            },
-          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               _sortBy = value;
@@ -124,11 +144,18 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             final res = _filteredRestaurants[i];
             return Stack(
               children: [
-                RestaurantCard(restaurant: res),
-                Positioned(right: 10, top: 10, child: IconButton(
-                  icon: const Icon(Icons.bookmark_add, color: Colors.blue, size: 32),
-                  onPressed: () => _save(res),
-                )),
+                RestaurantCard(
+                  restaurant: res,
+                  onTap: () => _launchMaps(res.name, res.region), // 수정된 함수 호출
+                ),
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: IconButton(
+                    icon: const Icon(Icons.bookmark_add, color: Colors.blue, size: 32),
+                    onPressed: () => _save(res),
+                  ),
+                ),
               ],
             );
           },

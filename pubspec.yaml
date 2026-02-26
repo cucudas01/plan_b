@@ -19,8 +19,8 @@ dependencies:
   csv: ^6.0.0
   path_provider: ^2.1.2
   cupertino_icons: ^1.0.8
-  # 외부 앱 실행을 위해 추가
   url_launcher: ^6.2.5
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
